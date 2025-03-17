@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>03. Demo app</title>
+    <style>
+      .header-section {
+        padding: 20px;
+        margin-bottom: 30px;
+        background-color: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+      }
+      .header-section h1 {
+        margin-top: 0;
+        color: #333;
+      }
+      .header-section p {
+        margin-bottom: 0;
+        color: #666;
+      }
+      #output {
+        padding: 20px;
+        border-top: 2px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-section">
+      <h1>デモ 03</h1>
+      <p>
+        低レベルな Gemini API だけを使用した WebSocket 通信の簡単なデモです。
+      </p>
+    </div>
+
+    <div id="output"></div>
+
+    <script>
+      const apiKey = "<YOUR_API_KEY>";
+      const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+
+      // WebSocket オブジェクトを作成
+      const ws = new WebSocket(endpoint);
+
+      // WebSocket の接続が確立したときに実行される関数
+      ws.onopen = () => {
+        console.log("WebSocket connection is opening...");
+        const config = {
+          setup: {
+            model: "models/gemini-2.0-flash-exp",
+            system_instruction: {
+              parts: [{ text: "Could you respond in Japanese?" }],
+            },
+            generation_config: {
+              response_modalities: ["text"],
+            },
+          },
+        };
+        ws.send(JSON.stringify(config));
+      };
+
+      // WebSocket からメッセージを受信したときに実行される関数
+      ws.onmessage = async (event) => {
+        try {
+          console.log("Event:", event);
+
+          // 受信したデータをテキストに変換
+          const responseText = await new Response(event.data).text();
+          const response = JSON.parse(responseText);
+
+          // Gemini API のセットアップ完了メッセージを受け取った場合
+          if (response.setupComplete) {
+            const message = "こんにちは、よろしく Gemini!";
+            display("あなた: " + message);
+
+            // Gemini にメッセージを送信
+            ws.send(
+              JSON.stringify({
+                client_content: {
+                  turns: [{ role: "user", parts: [{ text: message }] }],
+                  turn_complete: true,
+                },
+              })
+            );
+            // Gemini からコンテンツ（テキスト）を受け取った場合
+          } else if (response.serverContent?.modelTurn?.parts?.[0]?.text) {
+            display(
+              "Gemini: " + response.serverContent.modelTurn.parts[0].text
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing response:", error);
+        }
+      };
+
+      // WebSocket でエラーが発生したときに実行される関数
+      ws.onerror = (error) => {
+        console.error("WebSocket Error:", error);
+      };
+
+      // WebSocket の接続が閉じられたときに実行される関数
+      ws.onclose = (event) => {
+        console.log("Connection closed:", event);
+      };
+
+      // メッセージを画面に表示する関数
+      function display(message) {
+        const elm = document.createElement("p");
+        elm.textContent = message;
+        document.getElementById("output").appendChild(elm);
+      }
+    </script>
+  </body>
+</html>

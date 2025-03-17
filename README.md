@@ -39,7 +39,7 @@ Google Cloud のコンソールを開き、[Cloud Shell](https://cloud.google.co
 Cloud Shell が起動したら、**ルートディレクトリ直下に** GitHub からリポジトリをクローンしましょう。
 
 ```sh
-git clone https://github.com/pottava/gemini-multimodal-live-demo.git
+git clone https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson.git
 ```
 
 ### 1. Gemini Multimodal Live API の基本
@@ -50,7 +50,7 @@ git clone https://github.com/pottava/gemini-multimodal-live-demo.git
 2. テキスト → 音声
 
 ```sh
-teachme gemini-multimodal-live-demo/01-text-and-audio.md
+teachme gemini-multimodal-live-api-handson/01-text-and-audio.md
 ```
 
 ### 2. Python での 音声 → 音声 アプリ実装例
@@ -59,7 +59,7 @@ teachme gemini-multimodal-live-demo/01-text-and-audio.md
 とはいえ、基本的な挙動を確認するにはコードでの確認は有意義です。一緒に読んでみましょう。
 
 ```sh
-teachme gemini-multimodal-live-demo/02-audio-to-audio.md
+teachme gemini-multimodal-live-api-handson/02-audio-to-audio.md
 ```
 
 ### 3. 低レイヤ API を使った Web アプリの基本
@@ -67,7 +67,7 @@ teachme gemini-multimodal-live-demo/02-audio-to-audio.md
 JavaScript を使い、ブラウザでのシンプルな `テキスト → テキスト` & `テキスト → 音声` アプリケーションを作ってみましょう。
 
 ```sh
-teachme gemini-multimodal-live-demo/03-low-level-api.md
+teachme gemini-multimodal-live-api-handson/03-low-level-api.md
 ```
 
 ### 4. Vertex API 企業向け生成 AI アプリ
@@ -75,7 +75,7 @@ teachme gemini-multimodal-live-demo/03-low-level-api.md
 リアルタイム音声チャットを Vertex AI 経由で実現して、Cloud Run にデプロイしてみましょう。
 
 ```sh
-teachme gemini-multimodal-live-demo/04-vertex-ai.md
+teachme gemini-multimodal-live-api-handson/04-vertex-ai.md
 ```
 
 ### 5. Multimodal 生成 AI アプリ
@@ -83,5 +83,5 @@ teachme gemini-multimodal-live-demo/04-vertex-ai.md
 ビデオ + 音声を入力として、Gemini から音声で回答をもらうアプリケーションを実装してみます。
 
 ```sh
-teachme gemini-multimodal-live-demo/05-video-and-audio.md
+teachme gemini-multimodal-live-api-handson/05-video-and-audio.md
 ```

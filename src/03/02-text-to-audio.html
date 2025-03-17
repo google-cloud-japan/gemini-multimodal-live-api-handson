@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>04. Demo app</title>
+    <style>
+      .header-section {
+        padding: 20px;
+        margin-bottom: 30px;
+        background-color: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+      }
+      .header-section h1 {
+        margin-top: 0;
+        color: #333;
+      }
+      .header-section p {
+        margin-bottom: 0;
+        color: #666;
+      }
+      .input-container {
+        margin: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      #userInput {
+        padding: 8px;
+        width: 300px;
+      }
+      #sendButton {
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      #output {
+        margin: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-section">
+      <h1>デモ 04</h1>
+      <p>
+        低レベルな API だけを使い、Gemini
+        が私たちの問いかけに音声で応えてくれるデモです。
+      </p>
+    </div>
+
+    <div class="input-container">
+      <input
+        type="text"
+        id="userInput"
+        placeholder="メッセージを入力してください..."
+      />
+      <button id="sendButton" onclick="sendUserMessage()">送信</button>
+    </div>
+    <div id="output"></div>
+
+    <script>
+      const apiKey = "<YOUR_API_KEY>";
+      const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+
+      let audioContext;
+      let initialized = false; // AudioContext が初期化されたかどうかを追跡するフラグ
+      let audioQueue = [];
+      let isPlayingAudio = false;
+
+      // AudioContext の初期化
+      async function ensureAudioInitialized() {
+        if (!initialized) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)(
+            { sampleRate: 24000 }
+          );
+          // AudioContext を再開（初期状態は suspended であるため）
+          await audioContext.resume();
+          initialized = true;
+          console.log("Audio context initialized:", audioContext.state);
+        }
+      }
+      // Base64 でエンコードされたオーディオデータを再生キューに追加する
+      async function playAudioChunk(base64AudioChunk) {
+        try {
+          await ensureAudioInitialized();
+
+          audioQueue.push(base64AudioChunk);
+          if (!isPlayingAudio) {
+            await processAudioQueue();
+          }
+        } catch (error) {
+          console.error("Error queuing audio chunk:", error);
+        }
+      }
+      // オーディオキューを処理し、再生する
+      async function processAudioQueue() {
+        if (audioQueue.length === 0 || isPlayingAudio) {
+          return;
+        }
+        isPlayingAudio = true;
+
+        try {
+          while (audioQueue.length > 0) {
+            const chunk = audioQueue.shift();
+
+            // AudioContext が suspended であれば再開する
+            if (audioContext.state === "suspended") {
+              await audioContext.resume();
+            }
+            const arrayBuffer = base64ToArrayBuffer(chunk);
+            const float32Data = convertPCM16LEToFloat32(arrayBuffer); // PCM16LE 形式のデータを float32 に変換
+
+            // AudioBuffer を作成（モノラル、float32Data と同じ長さ、サンプルレート 24 kHz）
+            const audioBuffer = audioContext.createBuffer(
+              1,
+              float32Data.length,
+              24000
+            );
+            audioBuffer.getChannelData(0).set(float32Data);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination); // 出力先を audioContext.destination に設定
+
+            // 再生終了を待つ
+            await new Promise((resolve) => {
+              source.onended = resolve;
+              source.start(0);
+            });
+            console.log(
+              "Finished playing chunk, remaining chunks:",
+              audioQueue.length
+            );
+          }
+        } catch (error) {
+          console.error("Error processing audio queue:", error);
+        } finally {
+          isPlayingAudio = false;
+        }
+      }
+
+      // WebSocket オブジェクトを作成
+      const ws = new WebSocket(endpoint);
+
+      let audioChunks = [];
+      let isReceivingResponse = false; // レスポンスを受信中かどうかを示すフラグ
+
+      const input = document.getElementById("userInput");
+      const sendButton = document.getElementById("sendButton");
+
+      // メッセージを Gemini に送信
+      function sendUserMessage() {
+        if (!input.value.trim()) {
+          return;
+        }
+        const message = input.value;
+        display("あなた: " + message);
+
+        const contentMessage = {
+          client_content: {
+            turns: [{ role: "user", parts: [{ text: message }] }],
+            turn_complete: true,
+          },
+        };
+        ws.send(JSON.stringify(contentMessage));
+        input.value = "";
+      }
+      // エンターキーが押されたらメッセージを送信
+      input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendUserMessage();
+        }
+      });
+
+      // 接続が完了するまでは入力を無効化
+      input.disabled = true;
+      sendButton.disabled = true;
+
+      // WebSocket の接続が確立したときに実行される関数
+      ws.onopen = () => {
+        console.log("WebSocket connection is opening...");
+        const config = {
+          setup: {
+            model: "models/gemini-2.0-flash-exp",
+            system_instruction: {
+              parts: [{ text: "Could you respond in Japanese?" }],
+            },
+            generation_config: {
+              response_modalities: ["audio"],
+            },
+          },
+        };
+        ws.send(JSON.stringify(config));
+      };
+
+      // WebSocket からメッセージを受信したときに実行される関数
+      ws.onmessage = async (event) => {
+        try {
+          console.log("Event:", event);
+
+          let wsResponse;
+          // 受信データが Blob 形式かテキスト形式かを判断
+          if (event.data instanceof Blob) {
+            const responseText = await event.data.text();
+            wsResponse = JSON.parse(responseText);
+          } else {
+            wsResponse = JSON.parse(event.data);
+          }
+          console.log("WebSocket Response:", wsResponse);
+
+          // セットアップが完了したというメッセージを受け取ったら、入力を有効にする
+          if (wsResponse.setupComplete) {
+            input.disabled = false;
+            sendButton.disabled = false;
+          } else if (
+            wsResponse.serverContent?.modelTurn?.parts?.[0]?.inlineData
+          ) {
+            try {
+              // インラインデータからオーディオデータを取得
+              const audioData =
+                wsResponse.serverContent.modelTurn.parts[0].inlineData.data;
+
+              // 再生中でなく、キューが空の場合のみ "発話中..." と表示
+              if (!isPlayingAudio && audioQueue.length === 0) {
+                display("Gemini: 発話中...");
+              }
+              // オーディオデータを再生キューに追加
+              await playAudioChunk(audioData);
+
+              // ターンが完了したというメッセージを受け取ったら、"以上です" と表示
+              if (wsResponse.serverContent?.turnComplete) {
+                display("Gemini: 以上です");
+              }
+            } catch (error) {
+              console.error("Error handling audio data:", error);
+              console.log("Full response:", wsResponse);
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing response:", error);
+          console.log("Raw event data:", event.data);
+          display("Error parsing response: " + error.message);
+        }
+      };
+
+      // Base64 文字列を ArrayBuffer に変換する
+      function base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+      // PCM16LE 形式のデータを float32 に変換する
+      function convertPCM16LEToFloat32(pcmData) {
+        const inputArray = new Int16Array(pcmData);
+        const float32Array = new Float32Array(inputArray.length);
+
+        for (let i = 0; i < inputArray.length; i++) {
+          float32Array[i] = inputArray[i] / 32768;
+        }
+        return float32Array;
+      }
+
+      // WebSocket でエラーが発生したときに実行される関数
+      ws.onerror = (error) => {
+        console.error("WebSocket Error:", error);
+      };
+      // WebSocket の接続が閉じられたときに実行される関数
+      ws.onclose = (event) => {
+        console.log("Connection closed:", event);
+      };
+      // メッセージを画面に表示する関数
+      function display(message) {
+        const elm = document.createElement("p");
+        elm.textContent = message;
+        document.getElementById("output").appendChild(elm);
+      }
+    </script>
+  </body>
+</html>

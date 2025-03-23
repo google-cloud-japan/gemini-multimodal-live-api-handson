@@ -2,9 +2,9 @@
 
 ## 始めましょう
 
-この手順では WebSocket と Web Audio API を使用使って Gemini Multimodal Live API と対話する、リアルタイムの音声対音声アプリケーションを構築していきます。
+この手順では WebSocket と Web Audio API を使って Gemini Multimodal Live API と対話する、リアルタイムな音声アプリケーションを構築していきます。
 
-そして本章以降では、企業でも安心して利用できる **Vertex AI 経由での Gemini API** を使っていきます。
+そして本パート以降では改めて、企業でも安心して利用できる **Vertex AI 経由での Gemini API** を使っていきます :)
 
 <walkthrough-tutorial-duration duration="20"></walkthrough-tutorial-duration>
 <walkthrough-tutorial-difficulty difficulty="3"></walkthrough-tutorial-difficulty>
@@ -74,17 +74,26 @@ mv /tmp/*/application_default_credentials.json $HOME/.config/gcloud/ > /dev/null
 
 ## 4. システム構成
 
-Web ブラウザ (JavaScript) から Vertex AI を安全に接続する方法はいくつか考えられますが、今回は以下の方法を採用します。
+Web ブラウザ (JavaScript) から Vertex AI を安全に接続する方法はいくつか考えられますが、今回は多段のプロキシ（中継サーバ）を使う方法を採用します。
 
-- JavaScript から Gemini Multimodal Live API には直接接続せず、プロキシを挟む
-- Gemini (Vertex AI 版) への API 認証は、そのプロキシがサーバーサイドのサービスアカウントで代行する
-- ブラウザからプロキシへのアクセスは、静的ファイルとプロキシが同一オリジンになるように配置し、IAP で保護する
+- JavaScript と Gemini は直接繋がず、JavaScript からはクラウドに置かれた <walkthrough-editor-open-file filePath="src/proxy/proxy.py">proxy.py</walkthrough-editor-open-file> を経由して Gemini に接続します。
+- Gemini への認証・認可は、その Python コードの実行環境に割り当てられた[サービスアカウント](https://cloud.google.com/iam/docs/service-account-overview?hl=ja)で代行します。
+- すると今度はこの Python にアクセスできる人は誰でも Gemini を扱えてしまいます。そこで Python の前に [Identity-Aware Proxy (IAP)](https://cloud.google.com/security/products/iap?hl=ja) という認証サービスを挟み、アクセスできる人を制御します。
+- すると今度は JavaScript でどのように IAP 認証を通すか困ってしまいそうですが、Python が JavaScript と 同じ場所に置かれているとブラウザが判断すれば、Web サイトにアクセスしたときの認証が Python にも適用され、個別の認証プロセスを省けます。この挙動は[同一オリジンポリシー](https://developer.mozilla.org/ja/docs/Web/Security/Same-origin_policy)と呼ばれる仕様です。
+- これを実現するために [Nginx](https://ja.wikipedia.org/wiki/Nginx) というソフトウェアを使って、すべてを [Docker](https://ja.wikipedia.org/wiki/Docker) コンテナにまとめます。
 
-ブラウザ -> IAP -> Cloud Run（Nginx）-> 同一コンテナ内のプロキシ -> Gemini API
+結果として、こんな動きになります。
+
+1. ブラウザでサービスの URL にアクセス
+1. IAP でユーザーを認証
+1. Nginx が HTML と JavaScript を返す
+1. JavaScript が同じ認証情報を使って Python にアクセス
+1. Python はブラウザからの要求をそのまま Gemini に転送
+1. Python は Gemini の応答をそのままブラウザに返す
 
 ## 5. コンテナのビルド
 
-コードを読む前に、まずは動作確認を進めます。まずは 4. のシステム構成を実現するためのコンテナを作ります。
+コードを読む前に、まずは動作確認を進めましょう。まずは 4. のシステム構成を実現するため、<walkthrough-editor-open-file filePath="src/Dockerfile">Dockerfile</walkthrough-editor-open-file> を使って、すべてのソースコードをひとつのコンテナにまとめます。
 
 ```bash
 sed -e "s|<YOUR_PROJECT_ID>|${GOOGLE_CLOUD_PROJECT}|g" src/04/01-audio-to-audio.html > src/04/index.html
@@ -99,7 +108,7 @@ docker run --rm --name app-0401 -p 8080:8080 -e GOOGLE_CLOUD_PROJECT=${GOOGLE_CL
 ```
 
 Web preview ボタンを押し、"ポート 8080 でプレビュー" を選びましょう。  
-<walkthrough-web-preview-icon/>
+<walkthrough-web-preview-icon></walkthrough-web-preview-icon>
 
 マイクボタンをクリックして、何か話しかけてみてください！
 
@@ -107,9 +116,11 @@ Web preview ボタンを押し、"ポート 8080 でプレビュー" を選び�
 
 ## 6. Cloud Run へのデプロイ
 
-本来 IAP で保護すべきですが、今回は認証なしのエンドポイントとして Cloud Run にサービスをデプロイしてみます。
+ではこれを、世界に向けてクラウド上に展開してみます。
 
-まず、コンテナを保存するレジストリを作ります。
+本来は 4. で検討した通り **これを IAP で保護すべき** なのですが、今回は認証なしのサービスとして [Cloud Run](https://cloud.google.com/run?hl=ja) という Google Cloud のコンテナ アプリケーション プラットフォームに配置してみます。商用環境で展開する場合には [こちら](https://cloud.google.com/iap/docs/enabling-cloud-run?hl=ja) も併せてご参照ください。
+
+まず、コンテナを保存するレジストリを [Artifact Registry](https://cloud.google.com/artifact-registry?hl=ja) というサービスの中に作ります。
 
 ```bash
 gcloud artifacts repositories create genai --repository-format docker --location asia-northeast1 --description "Docker repository for GenAI hands-on"
@@ -124,13 +135,25 @@ docker push asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:040
 gcloud run deploy genai-app-0401 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0401 --region asia-northeast1 --platform managed --allow-unauthenticated --quiet
 ```
 
-サービスがデプロイされたら、以下のコマンドで帰ってきた URL にアクセスしてみてください。
+サービスがデプロイされたら、以下のコマンドで返ってくる URL にアクセスしてみてください。
 
 ```bash
 gcloud run services describe genai-app-0401 --region asia-northeast1 --format='value(status.address.url)'
 ```
 
-## 7. リアルタイム音声チャットのコード確認
+## 7. ログの確認
+
+Cloud Run で出力されたログをクラウド上のコンソールから確認してみましょう。
+
+1. [Cloud Run](https://console.cloud.google.com/run) にアクセスし
+1. `genai-app-0401` というサービス名をクリックし、[ログ](https://console.cloud.google.com/run/detail/asia-northeast1/genai-app-0401/logs) というタブをクリックしましょう。
+
+ログは確認できましたか？
+
+クラウドの画面でもサービスの状況が確認できたので、いよいよコードで実装をみていきましょう。  
+改めて<walkthrough-spotlight-pointer spotlightId="cloud-shell-maximize-button" target="cloudshell">Editor を最大化</walkthrough-spotlight-pointer>します。
+
+## 8. リアルタイム音声チャットのコード確認
 
 コードで確認してみます。  
 <walkthrough-editor-open-file filePath="src/04/01-audio-to-audio.html">01-audio-to-audio.html</walkthrough-editor-open-file>
@@ -140,6 +163,14 @@ gcloud run services describe genai-app-0401 --region asia-northeast1 --format='v
 - <walkthrough-editor-select-line filePath="src/04/01-audio-to-audio.html" startLine="128" endLine="130" startCharacterOffset="10" endCharacterOffset="100">L.129</walkthrough-editor-select-line> チャンクとなったオーディオデータは都度、Gemini API サーバーに送信されます。
 
 ご興味があれば <walkthrough-editor-open-file filePath="src/shared/audio-recorder.js">audio-recorder.js</walkthrough-editor-open-file> や <walkthrough-editor-open-file filePath="src/shared/audio-streamer.js">audio-streamer.js</walkthrough-editor-open-file>、<walkthrough-editor-open-file filePath="src/shared/gemini-live-api.js">gemini-live-api.js</walkthrough-editor-open-file> の実装もぜひご覧ください。
+
+## 9. サービスの削除
+
+みなさんがデプロイした Cloud Run サービスは現在、世界中からアクセスできる状態です。念のためサービスを削除しましょう。
+
+```bash
+gcloud run services delete genai-app-0401 --region asia-northeast1 --quiet
+```
 
 ## その 4 はこれで終わりです
 

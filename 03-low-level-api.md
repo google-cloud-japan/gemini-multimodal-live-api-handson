@@ -2,7 +2,9 @@
 
 ## 始めましょう
 
-この手順ではブラウザの組み込み WebSocket API を使用して Gemini API と直接通信する方法を確認します。
+この手順ではブラウザの組み込み WebSocket API を使い、かつ "Gemini API と直接通信する低レイヤーでの実装" を試します。
+
+ただしこのパートでは、API を直接呼び出す都合上、企業向けではない、一般開発者向けのエンドポイントを利用する実装になっています。**企業での利用は推奨されません**のでご注意ください。
 
 <walkthrough-tutorial-duration duration="15"></walkthrough-tutorial-duration>
 <walkthrough-tutorial-difficulty difficulty="1"></walkthrough-tutorial-difficulty>
@@ -38,7 +40,7 @@ cloudshell workspace gemini-multimodal-live-api-handson
 gcloud services api-keys create --key-id "gemini-api-$(whoami | grep -oE '[[:alpha:]]+')" --display-name "A key for the Gemini Multimodal Live API hands-on" --api-target "service=generativelanguage.googleapis.com"
 ```
 
-この応答に含まれる `keyString` が **以降のステップで利用する API キー** です。 
+この応答に含まれる `keyString` が **以降のステップで利用する API キー** です。
 
 <walkthrough-editor-select-line filePath="src/03/01-text-to-text.html" startLine="37" endLine="37" startCharacterOffset="22" endCharacterOffset="36">L.38</walkthrough-editor-select-line> `<YOUR_API_KEY>` を API キーと置き換え、Web サーバーを起動します。
 
@@ -47,7 +49,7 @@ python src/server.py
 ```
 
 Web preview ボタンを押し、"ポート 8080 でプレビュー" を選んでみましょう。  
-<walkthrough-web-preview-icon/>
+<walkthrough-web-preview-icon></walkthrough-web-preview-icon>
 
 `03` > `01-text-to-text.html` を選択し、デモ画面を開いてみましょう。  
 ハードコードされた内容に対する会話ですが、動作したでしょうか？
@@ -69,7 +71,7 @@ JavaScript を読んでみましょう。
 <walkthrough-editor-select-line filePath="src/03/02-text-to-audio.html" startLine="58" endLine="58" startCharacterOffset="22" endCharacterOffset="36">L.59</walkthrough-editor-select-line> `<YOUR_API_KEY>` を API キーと置き換えましょう。
 
 もしプレビューを閉じてしまっていたら、改めて Web preview ボタンを押し、"ポート 8080 でプレビュー" を選び  
-<walkthrough-web-preview-icon/>
+<walkthrough-web-preview-icon></walkthrough-web-preview-icon>
 
 `03` > `02-text-to-audio.html` を選択、デモ画面を開いてみましょう。  
 自由にコメントを入力してみてください。Gemini が音声で応えてくれます！

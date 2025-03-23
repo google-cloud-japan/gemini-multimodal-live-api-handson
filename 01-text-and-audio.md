@@ -47,9 +47,14 @@ gcloud config set project "${GOOGLE_CLOUD_PROJECT}"
 
 [Vertex AI](https://cloud.google.com/vertex-ai?hl=ja) など、関連サービスを有効化し、利用できる状態にします。
 
-```bash
-gcloud services enable aiplatform.googleapis.com compute.googleapis.com run.googleapis.com artifactregistry.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com
-```
+<walkthrough-enable-apis apis=
+  "compute.googleapis.com,
+  aiplatform.googleapis.com,
+  run.googleapis.com,
+  logging.googleapis.com,
+  iamcredentials.googleapis.com,
+  cloudresourcemanager.googleapis.com">
+</walkthrough-enable-apis>
 
 みなさんの権限でアプリケーションを動作させるため、アプリケーションのデフォルト認証情報（ADC）を作成します。  
 表示される URL をブラウザの別タブで開き、認証コードをコピー、ターミナルに貼り付け Enter を押してください。

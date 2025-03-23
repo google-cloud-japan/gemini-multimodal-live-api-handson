@@ -87,7 +87,7 @@ Web ブラウザ (JavaScript) から Vertex AI を安全に接続する方法は
 1. ブラウザでサービスの URL にアクセス
 1. IAP でユーザーを認証
 1. Nginx が HTML と JavaScript を返す
-1. JavaScript が同じ認証情報を使って Python にアクセス
+1. JavaScript が同じ認証情報を使い、Nginx を経由して Python にアクセス
 1. Python はブラウザからの要求をそのまま Gemini に転送
 1. Python は Gemini の応答をそのままブラウザに返す
 
@@ -132,13 +132,13 @@ docker push asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:040
 そして Cloud Run サービスを作成しましょう。
 
 ```bash
-gcloud run deploy genai-app-0401 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0401 --region asia-northeast1 --platform managed --allow-unauthenticated --quiet
+gcloud run deploy genai-app-04 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0401 --region asia-northeast1 --platform managed --allow-unauthenticated --quiet
 ```
 
 サービスがデプロイされたら、以下のコマンドで返ってくる URL にアクセスしてみてください。
 
 ```bash
-gcloud run services describe genai-app-0401 --region asia-northeast1 --format='value(status.address.url)'
+gcloud run services describe genai-app-04 --region asia-northeast1 --format='value(status.address.url)'
 ```
 
 ## 7. ログの確認
@@ -146,7 +146,7 @@ gcloud run services describe genai-app-0401 --region asia-northeast1 --format='v
 Cloud Run で出力されたログをクラウド上のコンソールから確認してみましょう。
 
 1. [Cloud Run](https://console.cloud.google.com/run) にアクセスし
-1. `genai-app-0401` というサービス名をクリックし、[ログ](https://console.cloud.google.com/run/detail/asia-northeast1/genai-app-0401/logs) というタブをクリックしましょう。
+1. `genai-app-04` というサービス名をクリックし、[ログ](https://console.cloud.google.com/run/detail/asia-northeast1/genai-app-04/logs) というタブをクリックしましょう。
 
 ログは確認できましたか？
 
@@ -169,7 +169,7 @@ Cloud Run で出力されたログをクラウド上のコンソールから確�
 みなさんがデプロイした Cloud Run サービスは現在、世界中からアクセスできる状態です。念のためサービスを削除しましょう。
 
 ```bash
-gcloud run services delete genai-app-0401 --region asia-northeast1 --quiet
+gcloud run services delete genai-app-04 --region asia-northeast1 --quiet
 ```
 
 ## その 4 はこれで終わりです

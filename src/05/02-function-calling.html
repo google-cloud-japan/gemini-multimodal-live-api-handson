@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Gemini Multimodal WebSocket デモ</title>
+    <link rel="stylesheet" href="/shared/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
+  </head>
+  <body>
+    <div class="header-section">
+      <h1>Gemini マルチモーダル & 関数呼び出しチャット (Vertex AI 版)</h1>
+      <p>
+        Webカメラや画面を共有しつつ、グーグル検索で強化されたGeminiと話してみましょう。
+      </p>
+    </div>
+
+    <div class="input-container">
+      <button
+        id="micButton"
+        onclick="toggleMicrophone()"
+        disabled
+        class="action-button"
+      >
+        <span class="material-symbols-outlined">mic</span>
+      </button>
+      <button id="webcamButton" onclick="toggleWebcam()" class="action-button">
+        <span class="material-symbols-outlined">videocam</span>
+      </button>
+      <button id="screenButton" onclick="toggleScreen()" class="action-button">
+        <span class="material-symbols-outlined">present_to_all</span>
+      </button>
+    </div>
+    <div class="video-container">
+      <video id="videoPreview" autoplay playsinline class="hidden"></video>
+    </div>
+    <div id="output"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/eventemitter3@5.0.1/dist/eventemitter3.umd.min.js"></script>
+    <script src="/shared/gemini-live-api.js"></script>
+    <script type="module">
+      import { AudioRecorder } from "./shared/audio-recorder.js";
+      import { AudioStreamer } from "./shared/audio-streamer.js";
+      import { MediaHandler } from "./shared/media-handler.js";
+
+      const PROXY_URL = `wss://${window.location.host}/ws`;
+      const PROJECT_ID = "<YOUR_PROJECT_ID>";
+      const LOCATION = "us-central1";
+
+      let audioContext;
+      let audioStreamer;
+      let audioRecorder;
+      let isRecording = false;
+      let initialized = false;
+      let isInterrupted = false;
+      let mediaHandler;
+      let geminiAPI; // Will be initialized with setup
+
+      // API の初期化
+      function initializeAPI() {
+        geminiAPI = new GeminiLiveAPI(PROXY_URL, true, {
+          model: `projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/gemini-2.0-flash-001`,
+          system_instruction: {
+            parts: [
+              {
+                text: "You are a helpful AI assistant with multimodal capabilities.\nYou have the following tools available to you:\n- google_search: Search the web\n\nRules:\n- Whenever you're asked about information that requires a search (e.g. news, stock prices, etc) you MUST use the google_search tool.\n- You MUST respond in Japanese always.",
+              },
+            ],
+          },
+          tools: [{ googleSearch: {} }],
+          generation_config: {
+            response_modalities: ["audio"],
+            speech_config: {
+              voice_config: {
+                prebuilt_voice_config: {
+                  voice_name: "Aoede",
+                },
+              },
+            },
+          },
+        });
+        setupGeminiHandlers();
+      }
+      initializeAPI();
+
+      window.addEventListener("DOMContentLoaded", () => {
+        mediaHandler = new MediaHandler();
+        mediaHandler.initialize(document.getElementById("videoPreview"));
+        initializeAPI();
+      });
+      // 初回メッセージ送信時にオーディオを初期化
+      async function ensureAudioInitialized() {
+        if (!initialized) {
+          // AudioContext を作成（サンプルレートは 24 kHz）
+          audioContext = new (window.AudioContext || window.webkitAudioContext)(
+            { sampleRate: 24000 }
+          );
+          // AudioStreamerのインスタンスを作成
+          audioStreamer = new AudioStreamer(audioContext);
+          await audioContext.resume();
+          initialized = true;
+          console.log("Audio context initialized:", audioContext.state);
+        }
+      }
+      // Base64でエンコードされた音声データを再生
+      async function playAudioChunk(base64AudioChunk) {
+        try {
+          await ensureAudioInitialized();
+          const arrayBuffer = base64ToArrayBuffer(base64AudioChunk);
+          const uint8Array = new Uint8Array(arrayBuffer);
+          audioStreamer.addPCM16(uint8Array);
+          audioStreamer.resume();
+        } catch (error) {
+          console.error("Error queuing audio chunk:", error);
+        }
+      }
+      // 録音を開始
+      async function startRecording() {
+        try {
+          await ensureAudioInitialized();
+
+          // 新しい録音を開始する際に状態をリセット
+          isInterrupted = false;
+          audioStreamer.stop(); // 以前のオーディオ状態をクリーンアップ
+
+          // WebSocket が閉じられていたら Gemini API を再初期化
+          if (!geminiAPI || geminiAPI.ws.readyState !== WebSocket.OPEN) {
+            initializeAPI();
+            // 接続が準備できるまで待機
+            await new Promise((resolve, reject) => {
+              const timeout = setTimeout(
+                () => reject(new Error("Connection timeout")),
+                5000
+              );
+              geminiAPI.onSetupComplete = () => {
+                clearTimeout(timeout);
+                resolve();
+                document.getElementById("micButton").disabled = false;
+              };
+            });
+          }
+          // AudioRecorderのインスタンスを作成し、録音を開始
+          audioRecorder = new AudioRecorder();
+          await audioRecorder.start();
+
+          // 録音データが取得されるたびに、Gemini API にデータを送信
+          audioRecorder.on("data", (base64Data) => {
+            geminiAPI.sendAudioChunk(base64Data);
+          });
+          display("録音開始...");
+          isRecording = true;
+
+          // マイクボタンを「停止」アイコンに変更
+          document.getElementById("micButton").innerHTML =
+            '<span class="material-symbols-outlined">stop</span>';
+        } catch (error) {
+          console.error("Error starting recording:", error);
+          display("録音開始エラー: " + error.message);
+        }
+      }
+      // 録音を停止
+      function stopRecording() {
+        if (audioRecorder) {
+          // AudioRecorder を停止
+          audioRecorder.stop();
+          audioRecorder.off("data");
+          display("録音停止");
+          isRecording = false;
+          document.getElementById("micButton").innerHTML =
+            '<span class="material-symbols-outlined">mic</span>';
+
+          // Stop video streams when stopping recording
+          mediaHandler.stopAll();
+          document.getElementById("webcamButton").innerHTML =
+            '<span class="material-symbols-outlined">videocam</span>';
+          document.getElementById("screenButton").innerHTML =
+            '<span class="material-symbols-outlined">present_to_all</span>';
+
+          // 終了メッセージを送信
+          geminiAPI.sendEndMessage();
+        }
+      }
+      // Gemini API のイベントハンドラを設定
+      function setupGeminiHandlers() {
+        geminiAPI.onSetupComplete = () => {
+          document.getElementById("micButton").disabled = false;
+        };
+        // 音声データ受信時に再生
+        geminiAPI.onAudioData = async (audioData) => {
+          if (!audioStreamer.isPlaying) {
+            display("Gemini: 発話中...");
+          }
+          await playAudioChunk(audioData);
+        };
+        // 中断時に「中断」と表示し、オーディオ再生を停止
+        geminiAPI.onInterrupted = () => {
+          display("Gemini: 中断");
+          isInterrupted = true;
+          audioStreamer.stop();
+        };
+        // ターン完了時に「発話完了」と表示し、中断状態をリセット
+        geminiAPI.onTurnComplete = () => {
+          display("Gemini: 発話完了");
+          isInterrupted = false; // Reset interruption state
+          audioStreamer.complete();
+        };
+        // エラー発生時にエラーメッセージを表示
+        geminiAPI.onError = (message) => {
+          display(message);
+        };
+        // 接続が切断されたときにメッセージを表示
+        geminiAPI.onClose = (event) => {
+          display(`接続が切れました`);
+        };
+      }
+      // toggleMicrophoneをグローバルに公開
+      window.toggleMicrophone = function () {
+        if (isRecording) {
+          stopRecording();
+        } else {
+          startRecording();
+        }
+      };
+      // Base64 文字列を ArrayBuffer に変換する
+      function base64ToArrayBuffer(base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+      // メッセージを画面に表示する関数
+      function display(message) {
+        const elem = document.createElement("p");
+        elem.textContent = message;
+        document.getElementById("output").appendChild(elem);
+      }
+      // Webcam のオン/オフを切り替える関数
+      window.toggleWebcam = async function () {
+        if (mediaHandler.isWebcamActive) {
+          mediaHandler.stopAll();
+          document.getElementById("webcamButton").innerHTML =
+            '<span class="material-symbols-outlined">videocam</span>';
+        } else {
+          const success = await mediaHandler.startWebcam();
+          if (success) {
+            document.getElementById("webcamButton").innerHTML =
+              '<span class="material-symbols-outlined">videocam_off</span>';
+
+            // フレームキャプチャを開始し、キャプチャした画像を Gemini API に送信する
+            mediaHandler.startFrameCapture((base64Image) => {
+              if (geminiAPI?.ws.readyState === WebSocket.OPEN) {
+                const message = {
+                  realtimeInput: {
+                    mediaChunks: [
+                      {
+                        mime_type: "image/jpeg",
+                        data: base64Image,
+                      },
+                    ],
+                  },
+                };
+                geminiAPI.ws.send(JSON.stringify(message));
+              }
+            });
+          }
+        }
+      };
+      // スクリーン共有のオン/オフを切り替える関数
+      window.toggleScreen = async function () {
+        if (mediaHandler.isScreenActive) {
+          mediaHandler.stopAll();
+          document.getElementById("screenButton").innerHTML =
+            '<span class="material-symbols-outlined">present_to_all</span>';
+        } else {
+          // スクリーン共有がアクティブでない場合は開始
+          const success = await mediaHandler.startScreenShare();
+          if (success) {
+            document.getElementById("screenButton").innerHTML =
+              '<span class="material-symbols-outlined">cancel_presentation</span>';
+
+            // フレームキャプチャを開始し、キャプチャした画像を Gemini API に送信
+            mediaHandler.startFrameCapture((base64Image) => {
+              if (geminiAPI?.ws.readyState === WebSocket.OPEN) {
+                const message = {
+                  realtimeInput: {
+                    mediaChunks: [
+                      {
+                        mime_type: "image/jpeg",
+                        data: base64Image,
+                      },
+                    ],
+                  },
+                };
+                geminiAPI.ws.send(JSON.stringify(message));
+              }
+            });
+          }
+        }
+      };
+    </script>
+  </body>
+</html>

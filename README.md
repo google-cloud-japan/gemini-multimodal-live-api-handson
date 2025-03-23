@@ -80,7 +80,8 @@ teachme gemini-multimodal-live-api-handson/04-vertex-ai.md
 
 ### 5. Multimodal 生成 AI アプリ
 
-ビデオ + 音声を入力として、Gemini から音声で回答をもらうアプリケーションを実装してみます。
+ビデオ + 音声を入力として、Gemini から音声で回答をもらうアプリケーションを実装してみます。  
+そして最後に、生成 AI の精度を高める施策として、[関数呼び出し](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/function-calling?hl=ja) も実践してみましょう。
 
 ```sh
 teachme gemini-multimodal-live-api-handson/05-video-and-audio.md

@@ -4,6 +4,9 @@
 
 この手順では Google Gen AI SDK を使い、テキストを入力して Gemini モデルと対話、テキストまたは音声で応答を得る方法を確認します。
 
+<walkthrough-tutorial-duration duration="30"></walkthrough-tutorial-duration>
+<walkthrough-tutorial-difficulty difficulty="1"></walkthrough-tutorial-difficulty>
+
 **前提条件**:
 
 - Google Cloud 上にプロジェクトが作成してある
@@ -11,12 +14,31 @@
 - _プロジェクト IAM 管理者_ 相当の権限をもつユーザーでログインしている
 - (推奨) Google Chrome を利用している
 
-## 1. CLI の初期設定 & API の有効化
+**[開始]** ボタンをクリックして次のステップに進みます。
 
-gcloud（Google Cloud の CLI ツール) を[こちらの方法でインストール](https://cloud.google.com/sdk/docs/install-sdk?hl=ja) し、以下のコマンドにあなたの **プロジェクト ID** を指定し、実行してください。
+## プロジェクトの設定
+
+この手順の中で実際にリソースを構築する対象のプロジェクトを選択してください。
+
+<walkthrough-project-setup></walkthrough-project-setup>
+
+## 1. エディタの起動
+
+[Cloud Shell エディタ](https://cloud.google.com/shell/docs/launching-cloud-shell-editor?hl=ja) は個人ごとに割り当てられる開発環境としてご利用いただけます。Cloud Shell エディタを起動してみましょう。
 
 ```bash
-export GOOGLE_CLOUD_PROJECT=
+cloudshell workspace gemini-multimodal-live-api-handson
+```
+
+Cloud Shell エディタが開いたら  
+<walkthrough-editor-spotlight spotlightId="file-explorer">explorer view</walkthrough-editor-spotlight> でファイルの一覧を確認しましょう。
+
+## 2. CLI の初期設定 & API の有効化
+
+[gcloud（Google Cloud の CLI ツール)](https://cloud.google.com/sdk/gcloud?hl=ja) のデフォルト プロジェクトを設定します。
+
+```bash
+export GOOGLE_CLOUD_PROJECT=<walkthrough-project-id/>
 ```
 
 ```bash
@@ -25,9 +47,16 @@ gcloud config set project "${GOOGLE_CLOUD_PROJECT}"
 
 [Vertex AI](https://cloud.google.com/vertex-ai?hl=ja) など、関連サービスを有効化し、利用できる状態にします。
 
-```bash
-gcloud services enable compute.googleapis.com aiplatform.googleapis.com generativelanguage.googleapis.com run.googleapis.com logging.googleapis.com iap.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com
-```
+<walkthrough-enable-apis apis=
+  "compute.googleapis.com,
+  aiplatform.googleapis.com,
+  generativelanguage.googleapis.com,
+  run.googleapis.com,
+  logging.googleapis.com,
+  iap.googleapis.com,
+  iamcredentials.googleapis.com,
+  cloudresourcemanager.googleapis.com">
+</walkthrough-enable-apis>
 
 みなさんの権限でアプリケーションを動作させるため、アプリケーションのデフォルト認証情報（ADC）を作成します。  
 表示される URL をブラウザの別タブで開き、認証コードをコピー、ターミナルに貼り付け Enter を押してください。
@@ -45,13 +74,13 @@ gcloud auth application-default login --quiet
 mv /tmp/*/application_default_credentials.json $HOME/.config/gcloud/ > /dev/null 2>&1
 ```
 
-認証情報が生成されたことを確かめましょう。
+認証情報が生成されたことを確かめます。
 
 ```bash
 cat ${GOOGLE_APPLICATION_CREDENTIALS} | jq .
 ```
 
-## 2. ローカル Python 環境のセットアップ
+## 3. ローカル Python 環境のセットアップ
 
 venv を使って仮想環境を作成します。
 
@@ -66,7 +95,7 @@ Python 版 Gen AI SDK をインストールしましょう。
 pip install google-genai
 ```
 
-## 3. Gemini Multimodal Live API とは
+## 4. Gemini Multimodal Live API とは
 
 Multimodal Live API の主な機能は次のとおりです。
 
@@ -79,15 +108,16 @@ Multimodal Live API の主な機能は次のとおりです。
 
 WebSocket はアプリと API を常に繋いでおく技術で、ある意味では電話のようなものです。一度繋がればお互いに好きなタイミングで情報を送り合えますし、電話を切るまでは相手とのやりとりをお互い記憶することも容易です。一方、必要な時にだけ情報を取りに行く対比的な方法として、REST API というものもあります。例えるなら駅の切符発券機のようなイメージです。行きたい場所のボタンを押せば切符が出てきますが、発券機はあなたのことを覚えていませんし、発券機側から何かを発信することもありません。リアルタイムかつ継続的なやり取りには電話 (WebSocket)、必要な情報をその都度得るには切符発券機 (REST API) のような技術が向いています。
 
-## 4. サンプル: テキスト → テキスト
+## 5. サンプル: テキスト → テキスト
 
-何はともあれ、まずはサンプルコードを読んでみましょう。
+何はともあれ、まずはサンプルコードを読んでみましょう。  
+<walkthrough-editor-open-file filePath="src/01/01-text-to-text.py">01-text-to-text.py</walkthrough-editor-open-file>
 
-- [L.20](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/01-text-to-text.py#L20) では Multimodal Live API が利用できる `gemini-2.0-flash-lite-001` を指定しています。
-- [L.28](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/01-text-to-text.py#L28) の `genai.Client()` は Google の生成 AI クライアントを初期化しています。
-- [L.31](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/01-text-to-text.py#L31) `async with` を使用することで、接続の開始と終了が自動的に管理されます。
-- [L.44](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/01-text-to-text.py#L44-L47) 非同期的にサーバーからの入力を受け付けます。
-- [L.54](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/01-text-to-text.py#L54) `asyncio` パッケージを使うことで効率的に非同期処理を管理します。
+- <walkthrough-editor-select-line filePath="src/01/01-text-to-text.py" startLine="19" endLine="19" startCharacterOffset="11" endCharacterOffset="100">L.20</walkthrough-editor-select-line> では Multimodal Live API が利用できる `gemini-2.0-flash-lite-001` を指定しています。
+- <walkthrough-editor-select-line filePath="src/01/01-text-to-text.py" startLine="27" endLine="27" startCharacterOffset="4" endCharacterOffset="100">L.28</walkthrough-editor-select-line> の `genai.Client()` は Google の生成 AI クライアントを初期化しています。
+- <walkthrough-editor-select-line filePath="src/01/01-text-to-text.py" startLine="30" endLine="30" startCharacterOffset="4" endCharacterOffset="14">L.31</walkthrough-editor-select-line> `async with` を使用することで、接続の開始と終了が自動的に管理されます。
+- <walkthrough-editor-select-line filePath="src/01/01-text-to-text.py" startLine="43" endLine="43" startCharacterOffset="8" endCharacterOffset="100">L.44</walkthrough-editor-select-line> 非同期的にサーバーからの入力を受け付けます。
+- <walkthrough-editor-select-line filePath="src/01/01-text-to-text.py" startLine="53" endLine="53" startCharacterOffset="4" endCharacterOffset="100">L.54</walkthrough-editor-select-line> `asyncio` パッケージを使うことで効率的に非同期処理を管理します。
 
 このコードを実行するための認証はすでに済んでいますが、Multimodal Live API は現在 Preview 中で、Iowa など限られたリージョンでのみ利用できる点に注意が必要です。また、Google Cloud の利用規約を前提とした API 利用ができるよう Vertex AI 経由とします。
 
@@ -104,13 +134,14 @@ export GOOGLE_CLOUD_LOCATION=us-central1
 python src/01/01-text-to-text.py
 ```
 
-## 5. サンプル: テキスト → 音声
+## 6. サンプル: テキスト → 音声
 
-サンプルコードを読んでみましょう。
+サンプルコードを読んでみましょう。  
+<walkthrough-editor-open-file filePath="src/01/02-text-to-audio.py">02-text-to-audio.py</walkthrough-editor-open-file>
 
-- [L.61](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/02-text-to-audio.py#L61) 音声での応答を指示します。
-- [L.62](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/02-text-to-audio.py#L62-L64) 日本語での応答を "システム指示" として設定しています。このように指定すると、都度プロンプトでお願いする必要がなくなります。
-- [L.87](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/01/02-text-to-audio.py#L87) 応答をファイルに書き込みます。
+- <walkthrough-editor-select-line filePath="src/01/02-text-to-audio.py" startLine="60" endLine="60" startCharacterOffset="13" endCharacterOffset="54">L.61</walkthrough-editor-select-line> 音声での応答を指示します。
+- <walkthrough-editor-select-line filePath="src/01/02-text-to-audio.py" startLine="61" endLine="61" startCharacterOffset="0" endCharacterOffset="100">L.62</walkthrough-editor-select-line> 日本語での応答を "システム指示" として設定しています。このように指定すると、都度プロンプトでお願いする必要がなくなります。
+- <walkthrough-editor-select-line filePath="src/01/02-text-to-audio.py" startLine="86" endLine="86" startCharacterOffset="20" endCharacterOffset="50">L.87</walkthrough-editor-select-line> 応答をファイルに書き込みます。
 
 実行してみましょう。
 
@@ -137,3 +168,13 @@ audio-player.ipynb ファイルを開きましょう。その上で・・
 3. `Run All` ボタン、または三角ボタンを押して、コードを実行してください。
 
 音声は流れましたか？
+
+## その 1 はこれで終わりです
+
+<walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>
+
+では続けて、ハンズオン その 2 へ進みましょう！
+
+```bash
+teachme tutorials/02-audio-to-audio.md
+```

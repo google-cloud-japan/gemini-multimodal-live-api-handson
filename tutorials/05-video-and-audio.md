@@ -4,14 +4,33 @@
 
 その 4 ではリアルタイムで音声で会話するデモでした。次はみなさんの **Web カメラ、もしくは画面を共有しながら** Gemini に話しかけてみましょう！
 
-## 1. CLI の初期設定
+<walkthrough-tutorial-duration duration="15"></walkthrough-tutorial-duration>
+<walkthrough-tutorial-difficulty difficulty="3"></walkthrough-tutorial-difficulty>
+
+**[開始]** ボタンをクリックして次のステップに進みます。
+
+## プロジェクトの設定
+
+この手順の中で実際にリソースを構築する対象のプロジェクトを選択してください。
+
+<walkthrough-project-setup></walkthrough-project-setup>
+
+## 1. エディタの起動
+
+[Cloud Shell エディタ](https://cloud.google.com/shell/docs/launching-cloud-shell-editor?hl=ja) を起動していなかった場合、以下のコマンドを実行しましょう。
+
+```bash
+cloudshell workspace gemini-multimodal-live-api-handson
+```
+
+## 2. CLI の初期設定
 
 **ハンズオン その 1 または 4 を実施された方は読み飛ばし、次へお進みください！**
 
-gcloud（Google Cloud の CLI ツール) を[こちらの方法でインストール](https://cloud.google.com/sdk/docs/install-sdk?hl=ja) し、以下のコマンドにあなたの **プロジェクト ID** を指定し、実行してください。
+[gcloud（Google Cloud の CLI ツール)](https://cloud.google.com/sdk/gcloud?hl=ja) のデフォルト プロジェクトを設定します。
 
 ```bash
-export GOOGLE_CLOUD_PROJECT=
+export GOOGLE_CLOUD_PROJECT=<walkthrough-project-id/>
 ```
 
 ```bash
@@ -40,7 +59,7 @@ mv /tmp/*/application_default_credentials.json $HOME/.config/gcloud/ > /dev/null
 cat ${GOOGLE_APPLICATION_CREDENTIALS} | jq .
 ```
 
-## 2. コンテナのビルド
+## 3. コンテナのビルド
 
 その 4 同様、まずは動作確認をしてみます。資材をコンテナとしてビルドし、
 
@@ -56,7 +75,8 @@ docker rm -f app-0401 app-0501 > /dev/null 2>&1
 docker run --rm --name app-0501 -p 8080:8080 -e GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT} -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/creds.json -v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/creds.json app-0501
 ```
 
-ブラウザで http://localhost:8080 を開きましょう。
+Web preview ボタンを押し、"ポート 8080 でプレビュー" を選びましょう。  
+<walkthrough-web-preview-icon></walkthrough-web-preview-icon>
 
 マイクボタンをクリックする前に、**カメラボタンか画面共有ボタンを押して、動画をアプリケーションに読み込ませます。**  
 その上でマイクボタンを押し、Gemini に何か話しかけてみてください！
@@ -65,7 +85,7 @@ docker run --rm --name app-0501 -p 8080:8080 -e GOOGLE_CLOUD_PROJECT=${GOOGLE_CL
 
 確認ができたら `Ctrl + C` を何度か押してプロセスを終了させましょう。
 
-## 3. Cloud Run へのデプロイ
+## 4. Cloud Run へのデプロイ
 
 今回も認証なしのエンドポイントとして Cloud Run にサービスをデプロイしてみます。コンテナを保存するレジストリを作り、さきほどビルドしたコンテナイメージを push します。
 
@@ -77,13 +97,7 @@ docker push asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:050
 そして Cloud Run サービスを作成しましょう。
 
 ```bash
-gcloud beta run deploy genai-app-05 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0501 --region asia-northeast1 --platform managed --no-allow-unauthenticated --iap --quiet
-```
-
-自分自身にアクセス許可を与えます。
-
-```bash
-gcloud beta iap web add-iam-policy-binding --member "user:$(gcloud config get-value core/account)" --role "roles/iap.httpsResourceAccessor" --resource-type "cloud-run" --service genai-app-05 --region asia-northeast1
+gcloud run deploy genai-app-05 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0501 --region asia-northeast1 --platform managed --allow-unauthenticated --quiet
 ```
 
 サービスがデプロイされたら、以下のコマンドで帰ってきた URL にアクセスしてみてください。
@@ -94,15 +108,16 @@ gcloud run services describe genai-app-05 --region asia-northeast1 --format='val
 
 ブラウザからでも Gemini のマルチモーダルでリアルタイムな機能は確認できたでしょうか？
 
-## 4. リアルタイム動画 × 音声チャットのコード確認
+## 5. リアルタイム動画 × 音声チャットのコード確認
 
-コードで確認してみます。
+コードで確認してみます。  
+<walkthrough-editor-open-file filePath="src/05/01-video-and-audio.html">01-video-and-audio.html</walkthrough-editor-open-file>
 
-- [L.46](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/05/01-video-and-audio.html#L46) Web カメラやスクリーンの共有は [media-handler.js](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/shared/media-handler.js) で管理しています。
-- [L.249](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/05/01-video-and-audio.html#L249-L263) Web カメラの動画を [500 ミリ秒おき](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/shared/media-handler.js#L125) に画像として切り出し、Gemini に WebSocket 経由で送信しています。つまりこの実装は 2 fps です。
-- [L.281](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/05/01-video-and-audio.html#L281-L295) スクリーン共有も Web カメラ同様、500 ミリ秒単位で Gemini に画像を転送しているのがわかります。
+- <walkthrough-editor-select-line filePath="src/05/01-video-and-audio.html" startLine="45" endLine="45" startCharacterOffset="6" endCharacterOffset="100">L.46</walkthrough-editor-select-line> Web カメラやスクリーンの共有は <walkthrough-editor-open-file filePath="src/shared/media-handler.js">media-handler.js</walkthrough-editor-open-file> で管理しています。
+- <walkthrough-editor-select-line filePath="src/05/01-video-and-audio.html" startLine="248" endLine="248" startCharacterOffset="12" endCharacterOffset="150">L.249</walkthrough-editor-select-line> Web カメラの動画を <walkthrough-editor-open-file filePath="src/shared/media-handler.js" startLine="125" endLine="125" startCharacterOffset="4" endCharacterOffset="100">500 ミリ秒おき</walkthrough-editor-open-file> に画像として切り出し、Gemini に WebSocket 経由で送信しています。つまりこの実装は 2 fps です。
+- <walkthrough-editor-select-line filePath="src/05/01-video-and-audio.html" startLine="280" endLine="280" startCharacterOffset="12" endCharacterOffset="150">L.281</walkthrough-editor-select-line> スクリーン共有も Web カメラ同様、500 ミリ秒単位で Gemini に画像を転送しているのがわかります。
 
-## 5. 関数呼び出し
+## 6. 関数呼び出し
 
 関数呼び出しのコードをコンテナとしてビルドし、
 
@@ -118,14 +133,15 @@ docker rm -f app-0401 app-0501 app-0502 > /dev/null 2>&1
 docker run --rm --name app-0502 -p 8080:8080 -e GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT} -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/creds.json -v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/creds.json app-0502
 ```
 
-ブラウザで http://localhost:8080 を開き
+Web preview ボタンを押し、"ポート 8080 でプレビュー" を選びましょう。  
+<walkthrough-web-preview-icon></walkthrough-web-preview-icon>
 
 マイクボタンをクリックして **「Gemini Robotics って知っている？」** と聞いてみてください。  
 [Gemini Robotics](https://blog.google/intl/ja-jp/company-news/technology/gemini-robotics-ai/) は Google DeepMind の最新の研究に基づくものであり、**LLM 単体では知り得ない状況にも正確に対応できている**ことがわかります。
 
 確認ができたら `Ctrl + C` を何度か押してプロセスを終了させましょう。
 
-## 6. Cloud Run へ関数呼び出し版をデプロイ
+## 7. Cloud Run へ関数呼び出し版をデプロイ
 
 アプリケーションをビルドして、コンテナイメージを push します。
 
@@ -148,15 +164,26 @@ gcloud run services describe genai-app-05 --region asia-northeast1 --format='val
 
 Cloud Run には[リビジョン](https://console.cloud.google.com/run/detail/asia-northeast1/genai-app-05/revisions) という概念があり、デプロイ履歴をもどしたりすることもできます。
 
-## 7. 関数呼び出しのコード確認
+## 8. 関数呼び出しのコード確認
 
-- [L.68](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/05/02-function-calling.html#L68) これまでシステム指示は「日本語で応答せよ」だけでしたが、今回は検索が必要な場合は Google 検索を行うように追加で指示しています。
-- [L.72](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/05/02-function-calling.html#L72) ツールとして「Google 検索」を有効化しています。任意の API を呼び出すような実装も可能です。
+Editor が小さくなっていたら <walkthrough-spotlight-pointer spotlightId="cloud-shell-maximize-button" target="cloudshell">最大化</walkthrough-spotlight-pointer>して、コードを確認しましょう。
+<walkthrough-editor-open-file filePath="src/05/02-function-calling.html">02-function-calling.html</walkthrough-editor-open-file>
 
-## 8. サービスの削除
+- <walkthrough-editor-select-line filePath="src/05/02-function-calling.html" startLine="67" endLine="67" startCharacterOffset="22" endCharacterOffset="400">L.68</walkthrough-editor-select-line> これまでシステム指示は「日本語で応答せよ」だけでしたが、今回は検索が必要な場合は Google 検索を行うように追加で指示しています。
+- <walkthrough-editor-select-line filePath="src/05/02-function-calling.html" startLine="71" endLine="71" startCharacterOffset="10" endCharacterOffset="100">L.72</walkthrough-editor-select-line> ツールとして「Google 検索」を有効化しています。任意の API を呼び出すような実装も可能です。
 
-デプロイした Cloud Run サービスを削除しましょう。
+## 9. サービスの削除
+
+前回同様、デプロイした Cloud Run サービスは現在、世界中からアクセスできる状態です。念のためサービスを削除しましょう。
 
 ```bash
 gcloud run services delete genai-app-05 --region asia-northeast1 --quiet
 ```
+
+## その 5 はこれで終わりです
+
+<walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>
+
+これですべてのハンズオン体験は終了です。
+
+お疲れさまでした！

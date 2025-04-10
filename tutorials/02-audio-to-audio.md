@@ -4,7 +4,20 @@
 
 この手順では Gemini Multimodal Live API に音声を入力し、音声で応答するアプリケーションを確認します。
 
-## 1. Gemini Multimodal Live API の双方向オーディオ通信
+<walkthrough-tutorial-duration duration="10"></walkthrough-tutorial-duration>
+<walkthrough-tutorial-difficulty difficulty="1"></walkthrough-tutorial-difficulty>
+
+**[開始]** ボタンをクリックして次のステップに進みます。
+
+## 1. エディタの起動
+
+[Cloud Shell エディタ](https://cloud.google.com/shell/docs/launching-cloud-shell-editor?hl=ja) を起動していなかった場合、以下のコマンドを実行しましょう。
+
+```bash
+cloudshell workspace gemini-multimodal-live-api-handson
+```
+
+## 2. Gemini Multimodal Live API の双方向オーディオ通信
 
 Multimodal Live API はリアルタイムの双方向オーディオ通信が行える仕組みをもっています。  
 アプリケーションはユーザーのマイクからオーディオ入力をキャプチャして Gemini API に送信、モデルのオーディオ応答を受信してユーザーのスピーカーから再生、という実装が可能です。
@@ -19,7 +32,7 @@ Multimodal Live API はリアルタイムの双方向オーディオ通信が行
 
 音声のフォーマットの現在の仕様については [こちら](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/multimodal-live?hl=ja#audio-formats)、その他の制限については [こちら](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/multimodal-live?hl=ja#limitations) を参照してください。
 
-## 2. Gemini が音声を解釈するまで
+## 3. Gemini が音声を解釈するまで
 
 Gemini との会話がどのように実現されるのか、手順をたどってみましょう。
 
@@ -35,11 +48,22 @@ Gemini が賢いポイントは、実はチャンクが `end_of_turn` として�
 音声アクティビティ検出 (VAD) という機能によって**実際のユーザーの発話終了をより正確に表す長い一時停止または無音期間を識別できる**という点です。  
 これにより、クライアントサイドの実装上の複雑さも軽減できます。
 
-## 3. サンプル: 音声 → 音声
+## 4. サンプル: 音声 → 音声
 
-では実際にサンプルコードを読んでみましょう。
+では実際にサンプルコードを読んでみましょう。  
+<walkthrough-editor-open-file filePath="src/02/01-audio-to-audio.py">01-audio-to-audio.py</walkthrough-editor-open-file>
 
-- [L.31](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/02/01-audio-to-audio.py#L31) pyaudio を使ってオーディオ ハードウェアからの入力ストリームと出力ストリームを管理します
-- [L.51](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/02/01-audio-to-audio.py#L51) `asyncio.TaskGroup` を使って、入力・出力を並列タスクとして実行します
-- [L.74](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/02/01-audio-to-audio.py#L74) `listen_and_send` ではマイクからの入力を監視し、小さなチャンクを頻繁に Gemini に送信し
-- [L.93](https://github.com/google-cloud-japan/gemini-multimodal-live-api-handson/blob/main/src/02/01-audio-to-audio.py#L93) `receive_and_play` では Gemini からの応答を受信し、スピーカーから再生します
+- <walkthrough-editor-select-line filePath="src/02/01-audio-to-audio.py" startLine="30" endLine="30" startCharacterOffset="4" endCharacterOffset="100">L.31</walkthrough-editor-select-line> pyaudio を使ってオーディオ ハードウェアからの入力ストリームと出力ストリームを管理します
+- <walkthrough-editor-select-line filePath="src/02/01-audio-to-audio.py" startLine="50" endLine="50" startCharacterOffset="12" endCharacterOffset="100">L.51</walkthrough-editor-select-line> `asyncio.TaskGroup` を使って、入力・出力を並列タスクとして実行します
+- <walkthrough-editor-select-line filePath="src/02/01-audio-to-audio.py" startLine="73" endLine="73" startCharacterOffset="12" endCharacterOffset="100">L.74</walkthrough-editor-select-line> `listen_and_send` ではマイクからの入力を監視し、小さなチャンクを頻繁に Gemini に送信し
+- <walkthrough-editor-select-line filePath="src/02/01-audio-to-audio.py" startLine="92" endLine="92" startCharacterOffset="12" endCharacterOffset="100">L.93</walkthrough-editor-select-line> `receive_and_play` では Gemini からの応答を受信し、スピーカーから再生します
+
+## その 2 はこれで終わりです
+
+<walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>
+
+では続けて、ハンズオン その 3 へ進みましょう！
+
+```bash
+teachme tutorials/03-low-level-api.md
+```

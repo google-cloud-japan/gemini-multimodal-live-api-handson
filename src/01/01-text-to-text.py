@@ -17,7 +17,7 @@ from google import genai
 from google.genai import types
 
 # Gemini モデルの指定
-MODEL_ID = "gemini-2.0-flash-001"
+MODEL_ID = "gemini-2.0-flash-lite-001"
 
 
 async def main():

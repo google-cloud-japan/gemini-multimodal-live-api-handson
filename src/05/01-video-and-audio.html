@@ -13,7 +13,8 @@
     <div class="header-section">
       <h1>Gemini リアルタイム ビデオ + 音声 チャット (Vertex AI 版)</h1>
       <p>
-        マイクに話しかけ、必要に応じて Web カメラまたは画面を共有して、マルチメディアな会話をしてみましょう。
+        マイクに話しかけ、必要に応じて Web
+        カメラまたは画面を共有して、マルチメディアな会話をしてみましょう。
       </p>
     </div>
 
@@ -61,7 +62,7 @@
       // API の初期化
       function initializeAPI() {
         geminiAPI = new GeminiLiveAPI(PROXY_URL, true, {
-          model: `projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/gemini-2.0-flash-001`,
+          model: `projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/gemini-2.0-flash-lite-001`,
           system_instruction: {
             parts: [{ text: "Could you respond in Japanese?" }],
           },

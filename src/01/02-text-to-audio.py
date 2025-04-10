@@ -20,7 +20,7 @@ from google.genai import types
 
 
 # Gemini モデルの指定
-MODEL_ID = "gemini-2.0-flash-001"
+MODEL_ID = "gemini-2.0-flash-lite-001"
 
 # Gemini 使用音声の指定（Puck, Charon, Kore, Fenrir, Aoede から選択）
 VOICE_NAME = "Aoede"
@@ -59,9 +59,7 @@ async def main():
         model=MODEL_ID,
         config=types.LiveConnectConfig(
             response_modalities=[types.Modality.AUDIO],  # 応答として音声を受け取ることを指定
-            system_instruction=types.Content(parts=[
-                types.Part(text="Could you respond in Japanese?")
-            ]),
+            system_instruction=types.Content(parts=[types.Part(text="Could you respond in Japanese?")]),
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=VOICE_NAME),

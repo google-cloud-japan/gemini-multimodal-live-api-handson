@@ -12,6 +12,7 @@
 - Google Cloud 上にプロジェクトが作成してある
 - プロジェクトの _編集者_ 相当の権限をもつユーザーでログインしている
 - _プロジェクト IAM 管理者_ 相当の権限をもつユーザーでログインしている
+- もしくはプロジェクトの _オーナー_ 相当の権限をもつユーザーでログインしている
 - (推奨) Google Chrome を利用している
 
 **[開始]** ボタンをクリックして次のステップに進みます。
@@ -58,6 +59,15 @@ gcloud config set project "${GOOGLE_CLOUD_PROJECT}"
   cloudresourcemanager.googleapis.com">
 </walkthrough-enable-apis>
 
+自分がプロジェクトの _オーナー_ または _プロジェクト IAM 管理者_ 相当の権限を持っていることを確認します。
+
+```bash
+account=$( gcloud auth list --filter=status:ACTIVE --format='value(account)' )
+gcloud projects get-iam-policy "${GOOGLE_CLOUD_PROJECT}" --filter="bindings.members:${account}" | grep -e 'roles/owner' -e 'roles/resourcemanager.projectIamAdmin'
+```
+
+## 3. 認証
+
 みなさんの権限でアプリケーションを動作させるため、アプリケーションのデフォルト認証情報（ADC）を作成します。  
 表示される URL をブラウザの別タブで開き、認証コードをコピー、ターミナルに貼り付け Enter を押してください。
 
@@ -80,7 +90,7 @@ mv /tmp/*/application_default_credentials.json $HOME/.config/gcloud/ > /dev/null
 cat ${GOOGLE_APPLICATION_CREDENTIALS} | jq .
 ```
 
-## 3. ローカル Python 環境のセットアップ
+## 4. ローカル Python 環境のセットアップ
 
 venv を使って仮想環境を作成します。
 
@@ -95,7 +105,7 @@ Python 版 Gen AI SDK をインストールしましょう。
 pip install google-genai
 ```
 
-## 4. Gemini Multimodal Live API とは
+## 5. Gemini Multimodal Live API とは
 
 Multimodal Live API の主な機能は次のとおりです。
 
@@ -108,7 +118,7 @@ Multimodal Live API の主な機能は次のとおりです。
 
 WebSocket はアプリと API を常に繋いでおく技術で、ある意味では電話のようなものです。一度繋がればお互いに好きなタイミングで情報を送り合えますし、電話を切るまでは相手とのやりとりをお互い記憶することも容易です。一方、必要な時にだけ情報を取りに行く対比的な方法として、REST API というものもあります。例えるなら駅の切符発券機のようなイメージです。行きたい場所のボタンを押せば切符が出てきますが、発券機はあなたのことを覚えていませんし、発券機側から何かを発信することもありません。リアルタイムかつ継続的なやり取りには電話 (WebSocket)、必要な情報をその都度得るには切符発券機 (REST API) のような技術が向いています。
 
-## 5. サンプル: テキスト → テキスト
+## 6. サンプル: テキスト → テキスト
 
 何はともあれ、まずはサンプルコードを読んでみましょう。  
 <walkthrough-editor-open-file filePath="src/01/01-text-to-text.py">01-text-to-text.py</walkthrough-editor-open-file>
@@ -134,7 +144,7 @@ export GOOGLE_CLOUD_LOCATION=us-central1
 python src/01/01-text-to-text.py
 ```
 
-## 6. サンプル: テキスト → 音声
+## 7. サンプル: テキスト → 音声
 
 サンプルコードを読んでみましょう。  
 <walkthrough-editor-open-file filePath="src/01/02-text-to-audio.py">02-text-to-audio.py</walkthrough-editor-open-file>

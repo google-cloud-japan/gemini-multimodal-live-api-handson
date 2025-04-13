@@ -97,7 +97,14 @@ docker push asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:050
 そして Cloud Run サービスを作成しましょう。
 
 ```bash
-gcloud run deploy genai-app-05 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0501 --region asia-northeast1 --platform managed --allow-unauthenticated --quiet
+gcloud beta run deploy genai-app-05 --image asia-northeast1-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/genai/app:0501 --region asia-northeast1 --platform managed --no-allow-unauthenticated --iap --quiet
+```
+
+自分自身にアクセス許可を与えます。
+
+```bash
+account=$( gcloud config get-value core/account )
+gcloud beta iap web add-iam-policy-binding --member "user:${account}" --role "roles/iap.httpsResourceAccessor" --resource-type "cloud-run" --service genai-app-05 --region asia-northeast1
 ```
 
 サービスがデプロイされたら、以下のコマンドで帰ってきた URL にアクセスしてみてください。

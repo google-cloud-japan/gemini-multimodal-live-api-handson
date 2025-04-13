@@ -37,7 +37,8 @@ cloudshell workspace gemini-multimodal-live-api-handson
 ただし API キーは商用利用においては推奨されない方法です。ハンズオンの最後の手順にあるキーの削除は必ず実行してください。
 
 ```bash
-gcloud services api-keys create --key-id "gemini-api-$(whoami | grep -oE '[[:alpha:]]+')" --display-name "A key for the Gemini Multimodal Live API hands-on" --api-target "service=generativelanguage.googleapis.com"
+export datetime=$( date +"%Y%m%d%H%M%S" )
+gcloud services api-keys create --key-id "gemini-api-${datetime}" --display-name "A key for the Gemini Multimodal Live API hands-on" --api-target "service=generativelanguage.googleapis.com"
 ```
 
 この応答に含まれる `keyString` が **以降のステップで利用する API キー** です。
@@ -83,7 +84,7 @@ JavaScript を読んでみましょう。
 また、以下のコマンドを実行し、一時的に発行した API キーを削除しましょう。
 
 ```bash
-gcloud services api-keys delete "gemini-api-$(whoami | grep -oE '[[:alpha:]]+')"
+gcloud services api-keys delete "gemini-api-${datetime}"
 ```
 
 <walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>

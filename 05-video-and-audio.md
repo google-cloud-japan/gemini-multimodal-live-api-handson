@@ -83,7 +83,8 @@ gcloud beta run deploy genai-app-05 --image asia-northeast1-docker.pkg.dev/${GOO
 自分自身にアクセス許可を与えます。
 
 ```bash
-gcloud beta iap web add-iam-policy-binding --member "user:$(gcloud config get-value core/account)" --role "roles/iap.httpsResourceAccessor" --resource-type "cloud-run" --service genai-app-05 --region asia-northeast1
+account=$( gcloud config get-value core/account )
+gcloud beta iap web add-iam-policy-binding --member "user:${account}" --role "roles/iap.httpsResourceAccessor" --resource-type "cloud-run" --service genai-app-05 --region asia-northeast1
 ```
 
 サービスがデプロイされたら、以下のコマンドで帰ってきた URL にアクセスしてみてください。
